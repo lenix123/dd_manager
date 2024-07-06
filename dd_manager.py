@@ -8,12 +8,12 @@ import random
 import argparse
 
 
-TOKEN = ''
+TOKEN = '2498368948699325b02ee94a5180bcbf37cdab49'
 
 class DD:
     LAST_REVIEWED = 2
 
-    def __init__(self, token: str, compare_date=None):
+    def __init__(self, token: str, start_date=None, end_date=None):
         """
         Initialize the object with the provided domain and token.
 
@@ -34,11 +34,17 @@ class DD:
             'Authorization': f'Token {token}'
         }
 
-        if compare_date == None:
+        if start_date == None:
             # get last week day
-            self._compare_date = datetime.date.today() - datetime.timedelta(days=7)
+            self._start_date = datetime.date.today() - datetime.timedelta(days=7)
         else:
-            self._compare_date = datetime.datetime.strptime(args.date, '%d/%m/%Y').date()
+            self._start_date = datetime.datetime.strptime(start_date, '%d/%m/%Y').date()
+
+        if end_date == None:
+            # get today
+            self._end_date = datetime.date.today()
+        else:
+            self._end_date = datetime.datetime.strptime(end_date, '%d/%m/%Y').date()
 
     def _read_tasks_file(self):
         """
@@ -102,7 +108,10 @@ class DD:
                 # closed finding
 
                 mitigated_date = dateutil.parser.isoparse(finding["mitigated"]).date()
-                if mitigated_date < self._compare_date:
+                # check that accepted date in the interval
+                if (self._end_date < mitigated_date):
+                    continue
+                if (mitigated_date < self._start_date):
                     return
 
                 user_id = finding["mitigated_by"]
@@ -117,9 +126,11 @@ class DD:
                     print("\nSEVERAL RISK ACCEPTANCE: finding: {}\n".format(finding["id"]))
 
                 accepted_datetime = dateutil.parser.isoparse(risk_acceptance["created"])
-                if (accepted_datetime.date() < self._compare_date):
+                if (self._end_date < accepted_datetime.date()):
+                    continue
+                if (accepted_datetime.date() < self._start_date):
                     if (accepted_datetime != dateutil.parser.isoparse(risk_acceptance["updated"])):
-                        # it is okay, keep going
+                        # it was updated, keep going
                         continue
 
                     return
@@ -234,7 +245,7 @@ class DD:
 
 
 def stats(args):
-    dd_client = DD(token=(args.token if TOKEN=='' else TOKEN), compare_date=args.date)
+    dd_client = DD(token=(args.token if TOKEN=='' else TOKEN), start_date=args.start_date, end_date=args.end_date)
     dd_client.get_statistic(save=args.save, verbose=args.verbose)
 
 def assign(args):
@@ -250,7 +261,8 @@ parser.add_argument('-t', '--token', required=TOKEN=='', help="Токен от �
 
 subparsers = parser.add_subparsers(required=True)
 stat_parser = subparsers.add_parser('stats', help='Собрать статистику за период')
-stat_parser.add_argument('-d', '--date', help='(29/07/2002) - Начальная дата после которой собрать статистику. По умолчанию - неделю назад')
+stat_parser.add_argument('-d', '--start_date', help='(29/07/2002) - Начальная дата (включительно) после которой собрать статистику. По умолчанию - неделю назад')
+stat_parser.add_argument('-e', '--end_date', help='(29/07/2002) - Конечная дата (включительно) для сбора статистики. По умолчанию - сегодняшний день')
 stat_parser.add_argument('-v', '--verbose', action='store_true', help="Подробный вывод статистики")
 stat_parser.add_argument('-s', '--save', action='store_true', help="Сохранить статистику в файл")
 stat_parser.set_defaults(func=stats)
