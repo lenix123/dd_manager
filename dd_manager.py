@@ -200,6 +200,10 @@ class DD:
                 user["tasks"].append(finding_id)
                 print(self._construct_url(finding_id))
                 findings.remove(finding)
+                
+                if save:
+                    requests.post("https://{domain}/api/v2/findings/{id}/tags/".format(domain=self._domain, id=finding_id),\
+                         json={'tags': ['inwork']}, headers=self._headers)
 
         # write tasks to a file
         if save:
