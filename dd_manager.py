@@ -92,7 +92,15 @@ class DD:
 
         if save:
             # saves the result
+            self._clean_stats()
             self._write_tasks_file()
+
+    def _clean_stats(self):
+        # delete unused values in stats
+        for user in self.users.values():
+            user["task_closed"] = 0
+            user["closed"] = 0
+            user["risk_accepted"] = 0
 
     def _get_findings(self, limit=210, offset=0) -> typing.List[typing.Dict[str, typing.Any]]:
         params = {
@@ -202,6 +210,7 @@ class DD:
                 findings.remove(finding)
                 
                 if save:
+                    # add tag "inwork" to the finding
                     requests.post("https://{domain}/api/v2/findings/{id}/tags/".format(domain=self._domain, id=finding_id),\
                          json={'tags': ['inwork']}, headers=self._headers)
 
